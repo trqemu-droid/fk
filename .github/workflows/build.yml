@@ -23,6 +23,7 @@ jobs:
       run: |
         mkdir -p app/src/main/java/com/example/tallyhelper
         mkdir -p app/src/main/res/layout
+        mkdir -p app/src/main/res/xml
         mkdir -p app/src/main/assets
 
         cat << 'EOF' > gradle.properties
@@ -64,8 +65,8 @@ jobs:
                 applicationId "com.example.tallyhelper"
                 minSdk 24
                 targetSdk 34
-                versionCode 1
-                versionName "1.0"
+                versionCode 2
+                versionName "1.1"
             }
             buildTypes {
                 release {
@@ -86,6 +87,15 @@ jobs:
         }
         EOF
 
+        cat << 'EOF' > app/src/main/res/xml/provider_paths.xml
+        <?xml version="1.0" encoding="utf-8"?>
+        <paths>
+            <external-path name="external_files" path="." />
+            <external-path name="download_files" path="Download/" />
+            <files-path name="internal_files" path="." />
+        </paths>
+        EOF
+
         cat << 'EOF' > app/src/main/AndroidManifest.xml
         <?xml version="1.0" encoding="utf-8"?>
         <manifest xmlns:android="http://schemas.android.com/apk/res/android">
@@ -98,6 +108,7 @@ jobs:
                 android:allowBackup="true"
                 android:label="কার্টুন টালি"
                 android:supportsRtl="true"
+                android:usesCleartextTraffic="true"
                 android:theme="@style/Theme.AppCompat.NoActionBar">
                 <activity
                     android:name=".MainActivity"
@@ -109,6 +120,15 @@ jobs:
                         <category android:name="android.intent.category.LAUNCHER" />
                     </intent-filter>
                 </activity>
+                <provider
+                    android:name="androidx.core.content.FileProvider"
+                    android:authorities="com.example.tallyhelper.fileprovider"
+                    android:exported="false"
+                    android:grantUriPermissions="true">
+                    <meta-data
+                        android:name="android.support.FILE_PROVIDER_PATHS"
+                        android:resource="@xml/provider_paths" />
+                </provider>
             </application>
         </manifest>
         EOF
@@ -118,7 +138,7 @@ jobs:
         <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="#26231C">
+            android:background="#EDE2CC">
             <WebView
                 android:id="@+id/webView"
                 android:layout_width="match_parent"
@@ -134,6 +154,7 @@ jobs:
         import android.content.ContentValues;
         import android.content.Intent;
         import android.content.pm.PackageManager;
+        import android.media.MediaScannerConnection;
         import android.net.Uri;
         import android.os.Build;
         import android.os.Bundle;
@@ -150,8 +171,12 @@ jobs:
         import android.widget.Toast;
         import androidx.activity.result.ActivityResultLauncher;
         import androidx.activity.result.contract.ActivityResultContracts;
+        import androidx.appcompat.app.AlertDialog;
         import androidx.appcompat.app.AppCompatActivity;
         import androidx.core.content.ContextCompat;
+        import androidx.core.content.FileProvider;
+        import java.io.File;
+        import java.io.FileOutputStream;
         import java.io.OutputStream;
         import java.util.ArrayList;
         import java.util.List;
@@ -194,7 +219,11 @@ jobs:
                 WebSettings settings = webView.getSettings();
                 settings.setJavaScriptEnabled(true);
                 settings.setDomStorageEnabled(true);
+                settings.setDatabaseEnabled(true);
                 settings.setAllowFileAccess(true);
+                settings.setAllowContentAccess(true);
+                settings.setAllowFileAccessFromFileURLs(true);
+                settings.setAllowUniversalAccessFromFileURLs(true);
                 settings.setMediaPlaybackRequiresUserGesture(false);
                 settings.setUseWideViewPort(true);
                 settings.setLoadWithOverviewMode(true);
@@ -254,31 +283,71 @@ jobs:
                 }
             }
 
+            private void openPdf(Uri uri) {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW);
+                    intent.setDataAndType(uri, "application/pdf");
+                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    Intent chooser = Intent.createChooser(intent, "PDF ওপেন করুন");
+                    startActivity(chooser);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "PDF দেখার জন্য ফোনে কোনো PDF ভিউয়ার নেই", Toast.LENGTH_SHORT).show();
+                }
+            }
+
             public class WebAppInterface {
                 @JavascriptInterface
                 public void savePdf(String base64Data, String fileName) {
                     try {
                         String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                         byte[] pdfBytes = Base64.decode(cleanBase64, Base64.DEFAULT);
+                        final Uri finalUri;
 
-                        ContentValues contentValues = new ContentValues();
-                        contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-                        contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            ContentValues contentValues = new ContentValues();
+                            contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                            contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
                             contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+
+                            Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues);
+                            if (uri != null) {
+                                OutputStream outputStream = getContentResolver().openOutputStream(uri);
+                                if (outputStream != null) {
+                                    outputStream.write(pdfBytes);
+                                    outputStream.close();
+                                }
+                            }
+                            finalUri = uri;
+                        } else {
+                            File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                            if (!downloadDir.exists()) downloadDir.mkdirs();
+                            File file = new File(downloadDir, fileName);
+                            FileOutputStream fos = new FileOutputStream(file);
+                            fos.write(pdfBytes);
+                            fos.close();
+                            MediaScannerConnection.scanFile(MainActivity.this,
+                                    new String[]{file.getAbsolutePath()},
+                                    new String[]{"application/pdf"}, null);
+                            finalUri = FileProvider.getUriForFile(MainActivity.this, "com.example.tallyhelper.fileprovider", file);
                         }
 
-                        Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues);
-                        if (uri != null) {
-                            OutputStream outputStream = getContentResolver().openOutputStream(uri);
-                            if (outputStream != null) {
-                                outputStream.write(pdfBytes);
-                                outputStream.close();
+                        runOnUiThread(() -> {
+                            if (finalUri != null) {
+                                new AlertDialog.Builder(MainActivity.this)
+                                    .setTitle("✅ PDF সংরক্ষিত হয়েছে!")
+                                    .setMessage("ফাইলটি Download ফোল্ডারে সেভ হয়েছে।\nআপনি কি এখনই এটি ওপেন করে দেখতে চান?")
+                                    .setPositiveButton("ওপেন করুন", (dialog, which) -> openPdf(finalUri))
+                                    .setNegativeButton("না, থাক", null)
+                                    .show();
+                            } else {
+                                Toast.makeText(MainActivity.this, "PDF সফলভাবে সেভ হয়েছে!", Toast.LENGTH_LONG).show();
                             }
-                            runOnUiThread(() -> Toast.makeText(MainActivity.this, "PDF সফলভাবে সেভ হয়েছে Downloads ফোল্ডারে!", Toast.LENGTH_LONG).show());
-                        }
+                        });
                     } catch (Exception e) {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "PDF সেভ হতে সমস্যা হয়েছে: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> {
+                            Toast.makeText(MainActivity.this, "PDF সেভ হতে সমস্যা: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                        });
                     }
                 }
             }
@@ -286,6 +355,22 @@ jobs:
         EOF
 
         cp index.html app/src/main/assets/index.html || cp *.html app/src/main/assets/index.html
+
+        python3 -c '
+        path = "app/src/main/assets/index.html"
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                c = f.read()
+            target = "pdf.save(filename);"
+            replacement = "if(window.AndroidBridge&&window.AndroidBridge.savePdf){window.AndroidBridge.savePdf(pdf.output(\"datauristring\"),filename);}else{pdf.save(filename);}"
+            if target in c:
+                c = c.replace(target, replacement)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(c)
+                print("AndroidBridge successfully injected into index.html")
+        except Exception as e:
+            print("Patch notice:", e)
+        '
 
     - name: Setup Gradle 8.5
       uses: gradle/actions/setup-gradle@v3
