@@ -21,39 +21,16 @@ jobs:
 
     - name: Auto-Generate Android Project Structure
       run: |
-        mkdir -p app/src/main/java/com/example/tallyhelper
-        mkdir -p app/src/main/res/layout
-        mkdir -p app/src/main/res/drawable
-        mkdir -p app/src/main/res/xml
-        mkdir -p app/src/main/assets
+        mkdir -p app/src/main/java/com/example/tallyhelper app/src/main/res/layout app/src/main/res/drawable app/src/main/res/xml app/src/main/assets
 
-        # Check if user uploaded icon.png, otherwise create a nice carton vector icon
-        if [ -f "icon.png" ]; then
-            cp icon.png app/src/main/res/drawable/app_icon.png
-        elif [ -f "icon.jpg" ]; then
-            cp icon.jpg app/src/main/res/drawable/app_icon.png
-        else
-            cat << 'EOF' > app/src/main/res/drawable/app_icon.xml
-            <vector xmlns:android="http://schemas.android.com/apk/res/android"
-                android:width="108dp"
-                android:height="108dp"
-                android:viewportWidth="108"
-                android:viewportHeight="108">
-                <path
-                    android:fillColor="#26231C"
-                    android:pathData="M0,0h108v108h-108z"/>
-                <path
-                    android:fillColor="#D97B1F"
-                    android:pathData="M54,22L24,37L54,52L84,37Z"/>
-                <path
-                    android:fillColor="#B6620F"
-                    android:pathData="M24,39L24,69L52,85L52,54Z"/>
-                <path
-                    android:fillColor="#EDE2CC"
-                    android:pathData="M56,54L56,85L84,69L84,39Z"/>
-            </vector>
-            EOF
-        fi
+        cp icon.png app/src/main/res/drawable/app_icon.png 2>/dev/null || cp icon.jpg app/src/main/res/drawable/app_icon.png 2>/dev/null || cat << 'EOF' > app/src/main/res/drawable/app_icon.xml
+        <vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+        <path android:fillColor="#26231C" android:pathData="M0,0h108v108h-108z"/>
+        <path android:fillColor="#D97B1F" android:pathData="M54,22L24,37L54,52L84,37Z"/>
+        <path android:fillColor="#B6620F" android:pathData="M24,39L24,69L52,85L52,54Z"/>
+        <path android:fillColor="#EDE2CC" android:pathData="M56,54L56,85L84,69L84,39Z"/>
+        </vector>
+        EOF
 
         cat << 'EOF' > gradle.properties
         android.useAndroidX=true
@@ -68,25 +45,14 @@ jobs:
 
         cat << 'EOF' > build.gradle
         buildscript {
-            repositories {
-                google()
-                mavenCentral()
-            }
-            dependencies {
-                classpath 'com.android.tools.build:gradle:8.2.2'
-            }
+            repositories { google(); mavenCentral() }
+            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
         }
-        allprojects {
-            repositories {
-                google()
-                mavenCentral()
-            }
-        }
+        allprojects { repositories { google(); mavenCentral() } }
         EOF
 
         cat << 'EOF' > app/build.gradle
         apply plugin: 'com.android.application'
-
         android {
             namespace 'com.example.tallyhelper'
             compileSdk 34
@@ -94,26 +60,17 @@ jobs:
                 applicationId "com.example.tallyhelper"
                 minSdk 24
                 targetSdk 34
-                versionCode 3
-                versionName "1.2"
+                versionCode 4
+                versionName "1.3"
             }
-            buildTypes {
-                release {
-                    minifyEnabled false
-                }
-            }
+            buildTypes { release { minifyEnabled false } }
             compileOptions {
                 sourceCompatibility JavaVersion.VERSION_17
                 targetCompatibility JavaVersion.VERSION_17
             }
-            lint {
-                abortOnError = false
-                checkReleaseBuilds = false
-            }
+            lint { abortOnError false; checkReleaseBuilds false }
         }
-        dependencies {
-            implementation 'androidx.appcompat:appcompat:1.6.1'
-        }
+        dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
         EOF
 
         cat << 'EOF' > app/src/main/res/xml/provider_paths.xml
@@ -156,9 +113,7 @@ jobs:
                     android:authorities="com.example.tallyhelper.fileprovider"
                     android:exported="false"
                     android:grantUriPermissions="true">
-                    <meta-data
-                        android:name="android.support.FILE_PROVIDER_PATHS"
-                        android:resource="@xml/provider_paths" />
+                    <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/provider_paths" />
                 </provider>
             </application>
         </manifest>
@@ -167,163 +122,92 @@ jobs:
         cat << 'EOF' > app/src/main/res/layout/activity_main.xml
         <?xml version="1.0" encoding="utf-8"?>
         <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="#EDE2CC">
-            <WebView
-                android:id="@+id/webView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" />
+            android:layout_width="match_parent" android:layout_height="match_parent" android:background="#EDE2CC">
+            <WebView android:id="@+id/webView" android:layout_width="match_parent" android:layout_height="match_parent" />
         </FrameLayout>
         EOF
 
         cat << 'EOF' > app/src/main/java/com/example/tallyhelper/MainActivity.java
         package com.example.tallyhelper;
-
         import android.Manifest;
-        import android.app.Activity;
-        import android.content.ContentValues;
-        import android.content.Intent;
+        import android.content.*;
         import android.content.pm.PackageManager;
         import android.media.MediaScannerConnection;
         import android.net.Uri;
-        import android.os.Build;
-        import android.os.Bundle;
-        import android.os.Environment;
+        import android.os.*;
         import android.provider.MediaStore;
         import android.util.Base64;
-        import android.webkit.JavascriptInterface;
-        import android.webkit.PermissionRequest;
-        import android.webkit.ValueCallback;
-        import android.webkit.WebChromeClient;
-        import android.webkit.WebSettings;
-        import android.webkit.WebView;
-        import android.webkit.WebViewClient;
+        import android.webkit.*;
         import android.widget.Toast;
-        import androidx.activity.result.ActivityResultLauncher;
+        import androidx.activity.result.*;
         import androidx.activity.result.contract.ActivityResultContracts;
-        import androidx.appcompat.app.AlertDialog;
-        import androidx.appcompat.app.AppCompatActivity;
-        import androidx.core.content.ContextCompat;
-        import androidx.core.content.FileProvider;
-        import java.io.File;
-        import java.io.FileOutputStream;
-        import java.io.OutputStream;
-        import java.util.ArrayList;
-        import java.util.List;
+        import androidx.appcompat.app.*;
+        import androidx.core.content.*;
+        import java.io.*;
+        import java.util.*;
 
         public class MainActivity extends AppCompatActivity {
             private WebView webView;
             private ValueCallback<Uri[]> filePathCallback;
 
             private final ActivityResultLauncher<String[]> requestPermissionLauncher =
-                registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), permissions -> {
-                    Boolean cameraGranted = permissions.get(Manifest.permission.CAMERA);
-                    if (cameraGranted == null || !cameraGranted) {
-                        Toast.makeText(this, "ক্যামেরা পারমিশন প্রয়োজন", Toast.LENGTH_SHORT).show();
-                    }
-                });
+                registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), p -> {});
 
             private final ActivityResultLauncher<Intent> filePickerLauncher =
                 registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
-                    if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                        Uri[] results = WebChromeClient.FileChooserParams.parseResult(result.getResultCode(), result.getData());
-                        if (filePathCallback != null) {
-                            filePathCallback.onReceiveValue(results);
-                        }
-                    } else {
-                        if (filePathCallback != null) {
-                            filePathCallback.onReceiveValue(null);
-                        }
+                    if (filePathCallback != null) {
+                        Uri[] res = (result.getResultCode() == RESULT_OK && result.getData() != null)
+                            ? WebChromeClient.FileChooserParams.parseResult(result.getResultCode(), result.getData()) : null;
+                        filePathCallback.onReceiveValue(res);
+                        filePathCallback = null;
                     }
-                    filePathCallback = null;
                 });
 
             @Override
             protected void onCreate(Bundle savedInstanceState) {
                 super.onCreate(savedInstanceState);
                 setContentView(R.layout.activity_main);
-
-                checkPermissions();
+                requestPermissionLauncher.launch(new String[]{Manifest.permission.CAMERA});
 
                 webView = findViewById(R.id.webView);
-                WebSettings settings = webView.getSettings();
-                settings.setJavaScriptEnabled(true);
-                settings.setDomStorageEnabled(true);
-                settings.setDatabaseEnabled(true);
-                settings.setAllowFileAccess(true);
-                settings.setAllowContentAccess(true);
-                settings.setAllowFileAccessFromFileURLs(true);
-                settings.setAllowUniversalAccessFromFileURLs(true);
-                settings.setMediaPlaybackRequiresUserGesture(false);
-                settings.setUseWideViewPort(true);
-                settings.setLoadWithOverviewMode(true);
+                WebSettings s = webView.getSettings();
+                s.setJavaScriptEnabled(true);
+                s.setDomStorageEnabled(true);
+                s.setAllowFileAccess(true);
+                s.setAllowFileAccessFromFileURLs(true);
+                s.setAllowUniversalAccessFromFileURLs(true);
+                s.setUseWideViewPort(true);
+                s.setLoadWithOverviewMode(true);
 
                 webView.addJavascriptInterface(new WebAppInterface(), "AndroidBridge");
-
                 webView.setWebChromeClient(new WebChromeClient() {
                     @Override
-                    public void onPermissionRequest(PermissionRequest request) {
-                        runOnUiThread(() -> request.grant(request.getResources()));
+                    public void onPermissionRequest(PermissionRequest r) {
+                        runOnUiThread(() -> r.grant(r.getResources()));
                     }
-
                     @Override
-                    public boolean onShowFileChooser(WebView webView, ValueCallback<Uri[]> filePathCallback, FileChooserParams fileChooserParams) {
-                        MainActivity.this.filePathCallback = filePathCallback;
-                        if (fileChooserParams != null) {
-                            Intent intent = fileChooserParams.createIntent();
-                            try {
-                                filePickerLauncher.launch(intent);
-                                return true;
-                            } catch (Exception e) {
-                                MainActivity.this.filePathCallback = null;
-                                return false;
-                            }
-                        }
-                        return false;
+                    public boolean onShowFileChooser(WebView w, ValueCallback<Uri[]> cb, FileChooserParams fp) {
+                        filePathCallback = cb;
+                        try { filePickerLauncher.launch(fp.createIntent()); return true; } catch(Exception e) { filePathCallback = null; return false; }
                     }
                 });
-
                 webView.setWebViewClient(new WebViewClient());
                 webView.loadUrl("file:///android_asset/index.html");
             }
 
-            private void checkPermissions() {
-                List<String> list = new ArrayList<>();
-                list.add(Manifest.permission.CAMERA);
-                if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.P) {
-                    list.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-                }
-                List<String> notGranted = new ArrayList<>();
-                for (String p : list) {
-                    if (ContextCompat.checkSelfPermission(this, p) != PackageManager.PERMISSION_GRANTED) {
-                        notGranted.add(p);
-                    }
-                }
-                if (!notGranted.isEmpty()) {
-                    requestPermissionLauncher.launch(notGranted.toArray(new String[0]));
-                }
-            }
-
             @Override
             public void onBackPressed() {
-                if (webView != null && webView.canGoBack()) {
-                    webView.goBack();
-                } else {
-                    super.onBackPressed();
-                }
+                if (webView != null && webView.canGoBack()) webView.goBack(); else super.onBackPressed();
             }
 
             private void openPdf(Uri uri) {
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW);
-                    intent.setDataAndType(uri, "application/pdf");
-                    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-                    Intent chooser = Intent.createChooser(intent, "PDF ওপেন করুন");
-                    startActivity(chooser);
-                } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "PDF দেখার জন্য ফোনে কোনো PDF ভিউয়ার নেই", Toast.LENGTH_SHORT).show();
+                    Intent i = new Intent(Intent.ACTION_VIEW);
+                    i.setDataAndType(uri, "application/pdf");
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startActivity(Intent.createChooser(i, "PDF ওপেন করুন"));
+                } catch(Exception e) {
+                    Toast.makeText(this, "PDF দেখার মতো কোনো অ্যাপ নেই", Toast.LENGTH_SHORT).show();
                 }
             }
 
@@ -331,54 +215,43 @@ jobs:
                 @JavascriptInterface
                 public void savePdf(String base64Data, String fileName) {
                     try {
-                        String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
-                        byte[] pdfBytes = Base64.decode(cleanBase64, Base64.DEFAULT);
+                        String clean = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
+                        byte[] bytes = Base64.decode(clean, Base64.DEFAULT);
                         final Uri finalUri;
 
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            ContentValues contentValues = new ContentValues();
-                            contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
-                            contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
-                            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
-
-                            Uri uri = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues);
-                            if (uri != null) {
-                                OutputStream outputStream = getContentResolver().openOutputStream(uri);
-                                if (outputStream != null) {
-                                    outputStream.write(pdfBytes);
-                                    outputStream.close();
-                                }
+                            ContentValues cv = new ContentValues();
+                            cv.put(MediaStore.MediaColumns.DISPLAY_NAME, fileName);
+                            cv.put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf");
+                            cv.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS);
+                            Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
+                            if (u != null) {
+                                OutputStream os = getContentResolver().openOutputStream(u);
+                                if (os != null) { os.write(bytes); os.close(); }
                             }
-                            finalUri = uri;
+                            finalUri = u;
                         } else {
-                            File downloadDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                            if (!downloadDir.exists()) downloadDir.mkdirs();
-                            File file = new File(downloadDir, fileName);
-                            FileOutputStream fos = new FileOutputStream(file);
-                            fos.write(pdfBytes);
-                            fos.close();
-                            MediaScannerConnection.scanFile(MainActivity.this,
-                                    new String[]{file.getAbsolutePath()},
-                                    new String[]{"application/pdf"}, null);
-                            finalUri = FileProvider.getUriForFile(MainActivity.this, "com.example.tallyhelper.fileprovider", file);
+                            File dir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+                            if (!dir.exists()) dir.mkdirs();
+                            File f = new File(dir, fileName);
+                            FileOutputStream fos = new FileOutputStream(f);
+                            fos.write(bytes); fos.close();
+                            MediaScannerConnection.scanFile(MainActivity.this, new String[]{f.getAbsolutePath()}, new String[]{"application/pdf"}, null);
+                            finalUri = FileProvider.getUriForFile(MainActivity.this, "com.example.tallyhelper.fileprovider", f);
                         }
 
                         runOnUiThread(() -> {
                             if (finalUri != null) {
                                 new AlertDialog.Builder(MainActivity.this)
                                     .setTitle("✅ PDF সংরক্ষিত হয়েছে!")
-                                    .setMessage("ফাইলটি Download ফোল্ডারে সেভ হয়েছে।\nআপনি কি এখনই এটি ওপেন করে দেখতে চান?")
-                                    .setPositiveButton("ওপেন করুন", (dialog, which) -> openPdf(finalUri))
+                                    .setMessage("ফাইলটি Download ফোল্ডারে সেভ হয়েছে।\nআপনি কি এখনই এটি দেখতে চান?")
+                                    .setPositiveButton("ওপেন করুন", (d, w) -> openPdf(finalUri))
                                     .setNegativeButton("না, থাক", null)
                                     .show();
-                            } else {
-                                Toast.makeText(MainActivity.this, "PDF সফলভাবে সেভ হয়েছে!", Toast.LENGTH_LONG).show();
                             }
                         });
-                    } catch (Exception e) {
-                        runOnUiThread(() -> {
-                            Toast.makeText(MainActivity.this, "PDF সেভ হতে সমস্যা: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        });
+                    } catch(Exception e) {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "PDF সেভ ত্রুটি: " + e.getMessage(), Toast.LENGTH_SHORT).show());
                     }
                 }
             }
@@ -398,9 +271,8 @@ jobs:
                 c = c.replace(target, replacement)
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(c)
-                print("AndroidBridge successfully injected into index.html")
         except Exception as e:
-            print("Patch notice:", e)
+            pass
         '
 
     - name: Setup Gradle 8.5
