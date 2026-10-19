@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Tally Helper — কার্টুন টালি</title>
+<meta name="description" content="কার্টুন স্ট্যাক গোনা ও টালি রাখার সহায়ক অ্যাপ">
+<meta name="theme-color" content="#26231C">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tally Helper">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="module">
+  import { BarcodeDetector } from "https://fastly.jsdelivr.net/npm/barcode-detector@2/dist/es/pure.min.js";
+  window.__BarcodeDetector = BarcodeDetector;
+</script>
+<style>
+  :root{
+    --kraft:#EDE2CC;
+    --kraft-dark:#E3D4B4;
+    --ink:#26231C;
+    --ink-soft:#5B5646;
+    --stamp-amber:#D97B1F;
+    --stamp-amber-dark:#B6620F;
+    --stamp-green:#3E6552;
+    --stamp-red:#B23A2E;
+    --card:#F7F1E2;
+    --line:#C9B98F;
+    --shadow: 0 2px 0 rgba(38,35,28,0.18);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Noto Sans Bengali','Oswald',sans-serif;
+    background:
+      repeating-linear-gradient(135deg, rgba(0,0,0,0.015) 0px, rgba(0,0,0,0.015) 2px, transparent 2px, transparent 14px),
+      var(--kraft);
+    color:var(--ink);
+    min-height:100vh;
+    padding-bottom:40px;
+  }
