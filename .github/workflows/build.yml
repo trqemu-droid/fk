@@ -28,6 +28,12 @@ jobs:
         mkdir -p app/src/main/res/layout
         mkdir -p app/src/main/assets
 
+        cat << 'EOF' > gradle.properties
+        android.useAndroidX=true
+        android.enableJetifier=true
+        org.gradle.jvmargs=-Xmx2048m
+        EOF
+
         cat << 'EOF' > settings.gradle
         rootProject.name = "TallyHelper"
         include ':app'
