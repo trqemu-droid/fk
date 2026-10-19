@@ -19,9 +19,6 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
-    - name: Accept Android SDK Licenses
-      run: yes | sdkmanager --licenses || true
-
     - name: Auto-Generate Android Project Structure
       run: |
         mkdir -p app/src/main/java/com/example/tallyhelper
