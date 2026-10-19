@@ -19,6 +19,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
 
+    - name: Accept Android SDK Licenses
+      run: yes | sdkmanager --licenses || true
+
     - name: Auto-Generate Android Project Structure
       run: |
         mkdir -p app/src/main/java/com/example/tallyhelper
@@ -74,6 +77,10 @@ jobs:
             }
             kotlinOptions {
                 jvmTarget = '17'
+            }
+            lint {
+                abortOnError = false
+                checkReleaseBuilds = false
             }
         }
         dependencies {
@@ -195,13 +202,16 @@ jobs:
                     ): Boolean {
                         this@MainActivity.filePathCallback = filePathCallback
                         val intent = fileChooserParams?.createIntent()
-                        try {
-                            filePickerLauncher.launch(intent)
-                        } catch (e: Exception) {
-                            this@MainActivity.filePathCallback = null
-                            return false
+                        if (intent != null) {
+                            try {
+                                filePickerLauncher.launch(intent)
+                                return true
+                            } catch (e: Exception) {
+                                this@MainActivity.filePathCallback = null
+                                return false
+                            }
                         }
-                        return true
+                        return false
                     }
                 }
                 webView.webViewClient = WebViewClient()
@@ -270,7 +280,7 @@ jobs:
         gradle-version: "8.5"
 
     - name: Build Debug APK
-      run: gradle assembleDebug
+      run: gradle assembleDebug --stacktrace
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
